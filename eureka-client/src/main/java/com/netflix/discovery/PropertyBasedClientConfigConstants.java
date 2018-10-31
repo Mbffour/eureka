@@ -5,6 +5,10 @@ package com.netflix.discovery;
  *
  * @author David Liu
  */
+
+/**
+ * 配置文件的每个属性 KEY
+ */
 final class PropertyBasedClientConfigConstants {
     static final String CLIENT_REGION_FALLBACK_KEY = "eureka.region";
 

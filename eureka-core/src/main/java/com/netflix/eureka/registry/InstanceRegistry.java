@@ -17,9 +17,15 @@ import java.util.Map;
  */
 public interface InstanceRegistry extends LeaseManager<InstanceInfo>, LookupService<String> {
 
+    // ====== 开启与关闭相关 ======
+
     void openForTraffic(ApplicationInfoManager applicationInfoManager, int count);
 
     void shutdown();
+
+    void clearRegistry();
+
+    // ====== 应用实例状态变更相关 ======
 
     @Deprecated
     void storeOverriddenStatusIfRequired(String id, InstanceStatus overriddenStatus);
@@ -33,6 +39,15 @@ public interface InstanceRegistry extends LeaseManager<InstanceInfo>, LookupServ
                                  String lastDirtyTimestamp, boolean isReplication);
 
     Map<String, InstanceStatus> overriddenInstanceStatusesSnapshot();
+
+
+    // ====== 响应缓存相关 ======
+
+    void initializedResponseCache();
+
+    ResponseCache getResponseCache();
+
+
 
     Applications getApplicationsFromLocalRegionOnly();
 
@@ -70,21 +85,14 @@ public interface InstanceRegistry extends LeaseManager<InstanceInfo>, LookupServ
      */
     InstanceInfo getInstanceByAppAndId(String appName, String id, boolean includeRemoteRegions);
 
-    void clearRegistry();
 
-    void initializedResponseCache();
 
-    ResponseCache getResponseCache();
+    // ====== 自我保护模式相关 ======
 
     long getNumOfRenewsInLastMin();
 
     int getNumOfRenewsPerMinThreshold();
 
-    int isBelowRenewThresold();
-
-    List<Pair<Long, String>> getLastNRegisteredInstances();
-
-    List<Pair<Long, String>> getLastNCanceledInstances();
 
     /**
      * Checks whether lease expiration is enabled.
@@ -93,5 +101,15 @@ public interface InstanceRegistry extends LeaseManager<InstanceInfo>, LookupServ
     boolean isLeaseExpirationEnabled();
 
     boolean isSelfPreservationModeEnabled();
+
+
+
+    int isBelowRenewThresold();
+
+    List<Pair<Long, String>> getLastNRegisteredInstances();
+
+    List<Pair<Long, String>> getLastNCanceledInstances();
+
+
 
 }

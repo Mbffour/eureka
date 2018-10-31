@@ -22,10 +22,25 @@ import com.netflix.eventbus.spi.EventBus;
  * <T> The type for client supplied filters (supports jersey1 and jersey2)
  */
 public abstract class AbstractDiscoveryClientOptionalArgs<T> {
+
+    /**
+     * 健康检查回调接口，目前已经废弃，使用 HealthCheckHandler 替代，你可以不关注该参数
+     */
     Provider<HealthCheckCallback> healthCheckCallbackProvider;
 
+    /**
+     * 健康检查处理器接口，目前暂未提供合适的默认实现，唯一提供的 com.netflix.appinfo.HealthCheckCallbackToHandlerBridge，'
+     * 用于将 HealthCheckCallback 桥接成 HealthCheckHandler
+     *
+     * 在 Spring-Cloud-Eureka-Client，提供了默认实现 org.springframework.cloud.netflix.eureka.EurekaHealthCheckHandler，
+     * 需要结合 spirng-boot-actuate 使用
+     */
     Provider<HealthCheckHandler> healthCheckHandlerProvider;
 
+
+    /**
+     * 向 Eureka-Server 注册之前的处理器接口，目前暂未提供默认实现。通过实现该接口，可以在注册前做一些自定义的处理
+     */
     PreRegistrationHandler preRegistrationHandler;
 
     Collection<T> additionalFilters;

@@ -57,6 +57,21 @@ import org.slf4j.LoggerFactory;
 @JsonRootName("instance")
 public class InstanceInfo {
 
+    /**
+     * // hashCode 只使用 ID 计算 hashcode
+     * // equals 只对比 ID
+     */
+
+    /**
+     * 调用 Eureka-Server HTTP Restful 接口 apps/${APP_NAME}/${INSTANCE_ID}/status 对应用实例覆盖状态的变更，
+     * 从而达到主动的、强制的变更应用实例状态。注意，实际不会真的修改 Eureka-Client 应用实例的状态，
+     * 而是修改在 Eureka-Server 注册的应用实例的状态
+     *
+     *
+     * 通过这样的方式，Eureka-Client 在获取到注册信息时，并且配置 eureka.shouldFilterOnlyUpInstances = true，
+     * 过滤掉非 InstanceStatus.UP 的应用实例，从而避免调动该实例，以达到应用实例的暂停服务( InstanceStatus.OUT_OF_SERVICE )，
+     * 而无需关闭应用实例。
+     */
     private static final String VERSION_UNKNOWN = "unknown";
 
     /**
@@ -1233,6 +1248,10 @@ public class InstanceInfo {
      * Sets the dirty flag so that the instance information can be carried to
      * the discovery server on the next heartbeat.
      */
+
+    /**
+     * 执行 instanceInfo.setIsDirty() 代码块，因为 InstanceInfo 刚被创建时，在 Eureka-Server 不存在，也会被注册
+     */
     public synchronized void setIsDirty() {
         isInstanceInfoDirty = true;
         lastDirtyTimestamp = System.currentTimeMillis();
@@ -1361,12 +1380,26 @@ public class InstanceInfo {
      *            - The InstanceInfo object of the instance.
      * @return - The zone in which the particular instance belongs to.
      */
+
+
+    /**
+     * 获取可用区
+     * @param availZones
+     * @param myInfo
+     * @return
+     */
     public static String getZone(String[] availZones, InstanceInfo myInfo) {
+        //没设置 传 null
+        //默认取第一个zone
         String instanceZone = ((availZones == null || availZones.length == 0) ? "default"
                 : availZones[0]);
         if (myInfo != null
+                //数据中心为Amazon
                 && myInfo.getDataCenterInfo().getName() == DataCenterInfo.Name.Amazon) {
 
+            /**
+             *  取数据中心的map  "availability-zone", "placement/"
+             */
             String awsInstanceZone = ((AmazonInfo) myInfo.getDataCenterInfo())
                     .get(AmazonInfo.MetaDataKey.availabilityZone);
             if (awsInstanceZone != null) {

@@ -38,12 +38,36 @@ public class Lease<T> {
 
     public static final int DEFAULT_DURATION_IN_SECS = 90;
 
+    /**
+     * 实体
+     * 属性，租约的持有者。在 Eureka-Server 里，暂时只有 InstanceInfo 使用。
+     */
     private T holder;
+
+    /**
+     * 取消注册时间戳
+     */
     private long evictionTimestamp;
+    /**
+     * 注册时间戳
+     * 注册( 创建 )租约时间戳。在构造方法里可以看租约对象的创建时间戳即为注册租约时间戳
+     */
     private long registrationTimestamp;
+
+    /**
+     *开始服务时间戳
+     */
     private long serviceUpTimestamp;
     // Make it volatile so that the expiration task would see this quicker
+
+    /**
+     * 最后更新时间戳
+     */
     private volatile long lastUpdateTimestamp;
+
+    /**
+     * 租约持续时长，单位：毫秒
+     */
     private long duration;
 
     public Lease(T r, int durationInSecs) {
@@ -58,6 +82,10 @@ public class Lease<T> {
      * Renew the lease, use renewal duration if it was specified by the
      * associated {@link T} during registration, otherwise default duration is
      * {@link #DEFAULT_DURATION_IN_SECS}.
+     */
+
+    /**
+     * 续租时间
      */
     public void renew() {
         lastUpdateTimestamp = System.currentTimeMillis() + duration;
@@ -76,6 +104,10 @@ public class Lease<T> {
     /**
      * Mark the service as up. This will only take affect the first time called,
      * subsequent calls will be ignored.
+     */
+
+    /*
+    开始服务时间戳 第一次有效
      */
     public void serviceUp() {
         if (serviceUpTimestamp == 0) {
@@ -108,6 +140,7 @@ public class Lease<T> {
      * @param additionalLeaseMs any additional lease time to add to the lease evaluation in ms.
      */
     public boolean isExpired(long additionalLeaseMs) {
+        // duration 90秒
         return (evictionTimestamp > 0 || System.currentTimeMillis() > (lastUpdateTimestamp + duration + additionalLeaseMs));
     }
 

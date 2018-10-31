@@ -8,11 +8,13 @@ package com.netflix.discovery.shared.transport;
 public interface EurekaTransportConfig {
 
     /**
+     * EurekaHttpClient 会话周期性重连时间，单位：秒
      * @return the reconnect inverval to use for sessioned clients
      */
     int getSessionedClientReconnectIntervalSeconds();
 
     /**
+     * 重试 EurekaHttpClient ，请求失败的 Eureka-Server 隔离集合占比 Eureka-Server 全量集合占比，超过该比例，进行清空。
      * @return the percentage of the full endpoints set above which the quarantine set is cleared in the range [0, 1.0]
      */
     double getRetryableClientQuarantineRefreshPercentage();
@@ -33,15 +35,26 @@ public interface EurekaTransportConfig {
     /**
      * @return the interval to poll for the async resolver.
      */
+
+    /*
+    异步解析 EndPoint 集群频率，单位：毫秒。
+     */
     int getAsyncResolverRefreshIntervalMs();
 
     /**
      * @return the async refresh timeout threshold in ms.
      */
+
+    /*
+    异步解析器预热解析 EndPoint 集群超时时间，单位：毫秒。
+     */
     int getAsyncResolverWarmUpTimeoutMs();
 
     /**
      * @return the max threadpool size for the async resolver's executor
+     */
+    /*
+    异步解析器线程池大小。
      */
     int getAsyncExecutorThreadPoolSize();
 

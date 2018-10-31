@@ -27,12 +27,39 @@ import org.slf4j.LoggerFactory;
  *
  * @author Karthik Ranganathan,Greg Kim
  */
+
+
+/**
+ * 用于获取最后X毫秒计数的实用程序类。
+ *
+ * Measured 测量
+ *
+ * 配合 Netflix Servo 实现监控信息采集续租每分钟次数。
+ * Eureka-Server 运维界面的显示续租每分钟次数。
+ * 自我保护机制，在 《Eureka 源码解析 —— 应用实例注册发现 （四）之自我保护机制》 详细解析
+ */
 public class MeasuredRate {
     private static final Logger logger = LoggerFactory.getLogger(MeasuredRate.class);
+
+    /**
+     * 上一个间隔次数
+     */
     private final AtomicLong lastBucket = new AtomicLong(0);
+    /**
+     * 当前间隔次数
+     */
     private final AtomicLong currentBucket = new AtomicLong(0);
 
+    /**
+     * 间隔
+     */
     private final long sampleInterval;
+
+    /**
+     * 定时器
+     *
+     * 定时器，负责每个 sampleInterval 间隔重置当前次数( currentBucket )，并将原当前次数设置到上一个次数( lastBucket )
+     */
     private final Timer timer;
 
     private volatile boolean isActive;
@@ -48,17 +75,20 @@ public class MeasuredRate {
 
     public synchronized void start() {
         if (!isActive) {
+            //调度执行一个任务为
             timer.schedule(new TimerTask() {
 
                 @Override
                 public void run() {
                     try {
                         // Zero out the current bucket.
+                        // 当前桶清零
                         lastBucket.set(currentBucket.getAndSet(0));
                     } catch (Throwable e) {
                         logger.error("Cannot reset the Measured Rate", e);
                     }
                 }
+                //  sampleInterval 第一次延迟时间   每隔多长时间调用一次任务
             }, sampleInterval, sampleInterval);
 
             isActive = true;
@@ -75,6 +105,8 @@ public class MeasuredRate {
     /**
      * Returns the count in the last sample interval.
      */
+
+    //返回上一个次数( lastBucket )
     public long getCount() {
         return lastBucket.get();
     }
@@ -82,7 +114,9 @@ public class MeasuredRate {
     /**
      * Increments the count in the current sample interval.
      */
+    //返回当前次数( currentBucket )
     public void increment() {
+        //当前桶+1
         currentBucket.incrementAndGet();
     }
 }

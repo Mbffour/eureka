@@ -24,7 +24,12 @@ import com.netflix.appinfo.InstanceInfo;
  *
  * @author Karthik Ranganathan, Greg Kim.
  * @param <T> for backward compatibility
+ */
 
+/**
+ * 在 Eureka-Client 里，EurekaClient 继承该接口。
+ * 在 Eureka-Server 里，com.netflix.eureka.registry.InstanceRegistry 继承该接口。
+ * @param <T>
  */
 public interface LookupService<T> {
 

@@ -21,6 +21,10 @@ import static com.netflix.eureka.cluster.protocol.ReplicationInstance.Replicatio
 /**
  * @author Tomasz Bak
  */
+
+/**
+ * 任务处理器
+ */
 class ReplicationTaskProcessor implements TaskProcessor<ReplicationTask> {
 
     private static final Logger logger = LoggerFactory.getLogger(ReplicationTaskProcessor.class);
@@ -73,13 +77,27 @@ class ReplicationTaskProcessor implements TaskProcessor<ReplicationTask> {
         return ProcessingResult.Success;
     }
 
+    /**
+     * 同步数据请求结果
+     * @param tasks
+     * @return
+     */
     @Override
     public ProcessingResult process(List<ReplicationTask> tasks) {
+
+        // 创建 批量提交同步操作任务的请求对象
         ReplicationList list = createReplicationListOf(tasks);
         try {
+            // 注释：这里通过 JerseyReplicationClient 客户端对象直接发送list请求数据
             EurekaHttpResponse<ReplicationListResponse> response = replicationClient.submitBatchUpdates(list);
+
+            // 处理 批量提交同步操作任务的响应
             int statusCode = response.getStatusCode();
             if (!isSuccess(statusCode)) {
+
+                /**
+                 * 状态码 503 ，目前 Eureka-Server 返回 503 的原因是被限流
+                 */
                 if (statusCode == 503) {
                     logger.warn("Server busy (503) HTTP status code received from the peer {}; rescheduling tasks after delay", peerId);
                     return ProcessingResult.Congestion;
@@ -89,9 +107,14 @@ class ReplicationTaskProcessor implements TaskProcessor<ReplicationTask> {
                     return ProcessingResult.PermanentError;
                 }
             } else {
+
+                //请求成功
                 handleBatchResponse(tasks, response.getEntity().getResponseList());
             }
         } catch (Throwable e) {
+
+            //超时请求发生网络异常，例如网络超时，打印网络异常日志。目前日志的打印为部分采样，
+            // 条件为网络发生异常每间隔 10 秒打印一条，避免网络发生异常打印超级大量的日志。该情况为永久错误，会重试该同步操作任务
             if (maybeReadTimeOut(e)) {
                 logger.error("It seems to be a socket read timeout exception, it will retry later. if it continues to happen and some eureka node occupied all the cpu time, you should set property 'eureka.server.peer-node-read-timeout-ms' to a bigger value", e);
             	//read timeout exception is more Congestion then TransientError, return Congestion for longer delay 
@@ -99,7 +122,10 @@ class ReplicationTaskProcessor implements TaskProcessor<ReplicationTask> {
             } else if (isNetworkConnectException(e)) {
                 logNetworkErrorSample(null, e);
                 return ProcessingResult.TransientError;
-            } else {
+            }
+
+            else {
+                //永久错误 不会重发包
                 logger.error("Not re-trying this exception because it does not seem to be a network exception", e);
                 return ProcessingResult.PermanentError;
             }
@@ -145,6 +171,12 @@ class ReplicationTaskProcessor implements TaskProcessor<ReplicationTask> {
             return;
         }
 
+        /**
+         * Eureka-Server 是允许同一时刻允许在任意节点被 Eureka-Client 发起写入相关的操作，
+         * 网络是不可靠的资源，Eureka-Client 可能向一个 Eureka-Server 注册成功，但是网络波动，
+         * 导致 Eureka-Client 误以为失败，此时恰好 Eureka-Client 变更了应用实例的状态，
+         * 重试向另一个 Eureka-Server 注册，那么两个 Eureka-Server 对该应用实例的状态产生冲突
+         */
         try {
             task.handleFailure(response.getStatusCode(), response.getResponseEntity());
         } catch (Throwable e) {

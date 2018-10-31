@@ -42,6 +42,10 @@ public abstract class AbstractAzToRegionMapper implements AzToRegionMapper {
     private final Map<String, String> availabilityZoneVsRegion = new ConcurrentHashMap<String, String>();
     private String[] regionsToFetch;
 
+    /**
+     * 默认Region映射
+     * @param clientConfig
+     */
     protected AbstractAzToRegionMapper(EurekaClientConfig clientConfig) {
         this.clientConfig = clientConfig;
         populateDefaultAZToRegionMap();
@@ -73,6 +77,9 @@ public abstract class AbstractAzToRegionMapper implements AzToRegionMapper {
                         throw new RuntimeException(msg);
                     }
                 } else {
+                    /*
+                    分区写入
+                     */
                     for (String availabilityZone : availabilityZones) {
                         availabilityZoneVsRegion.put(availabilityZone, remoteRegion);
                     }
@@ -127,6 +134,9 @@ public abstract class AbstractAzToRegionMapper implements AzToRegionMapper {
         return null;
     }
 
+    /**
+     * 默认映射
+     */
     private void populateDefaultAZToRegionMap() {
         defaultRegionVsAzMap.put("us-east-1", "us-east-1a");
         defaultRegionVsAzMap.put("us-east-1", "us-east-1c");

@@ -42,6 +42,11 @@ public abstract class AbstractJerseyEurekaHttpClient implements EurekaHttpClient
         logger.debug("Created client for url: {}", serviceUrl);
     }
 
+    /**
+     * 注册包发送
+     * @param info
+     * @return
+     */
     @Override
     public EurekaHttpResponse<Void> register(InstanceInfo info) {
         String urlPath = "apps/" + info.getAppName();
@@ -53,6 +58,7 @@ public abstract class AbstractJerseyEurekaHttpClient implements EurekaHttpClient
                     .header("Accept-Encoding", "gzip")
                     .type(MediaType.APPLICATION_JSON_TYPE)
                     .accept(MediaType.APPLICATION_JSON)
+                    //注释： 打包带上当前应用的所有信息 info
                     .post(ClientResponse.class, info);
             return anEurekaHttpResponse(response.getStatus()).headers(headersOf(response)).build();
         } finally {
@@ -66,6 +72,14 @@ public abstract class AbstractJerseyEurekaHttpClient implements EurekaHttpClient
         }
     }
 
+    /**
+     * 下线请求
+     * @param appName
+     * @param id
+     * @return
+     *
+     * DELETE 请求 Eureka-Server 的 apps/${APP_NAME}/${INSTANCE_INFO_ID} 接口
+     */
     @Override
     public EurekaHttpResponse<Void> cancel(String appName, String id) {
         String urlPath = "apps/" + appName + '/' + id;
@@ -180,6 +194,12 @@ public abstract class AbstractJerseyEurekaHttpClient implements EurekaHttpClient
         return getApplicationsInternal("svips/" + secureVipAddress, regions);
     }
 
+    /**
+     * 获取服务信息
+     * @param urlPath
+     * @param regions
+     * @return
+     */
     private EurekaHttpResponse<Applications> getApplicationsInternal(String urlPath, String[] regions) {
         ClientResponse response = null;
         String regionsParamValue = null;

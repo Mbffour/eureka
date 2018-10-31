@@ -57,10 +57,25 @@ public class ApplicationInfoManager {
 
     private static ApplicationInfoManager instance = new ApplicationInfoManager(null, null, null);
 
+    /**
+     * 状态变更监听器
+     */
     protected final Map<String, StatusChangeListener> listeners;
+
+
+    /**
+     * 应用实例状态匹配
+     */
     private final InstanceStatusMapper instanceStatusMapper;
 
+    /**
+     * 应用实例信息
+     */
     private InstanceInfo instanceInfo;
+
+    /**
+     * 应用实例配置
+     */
     private EurekaInstanceConfig config;
 
     public static class OptionalArgs {
@@ -95,6 +110,12 @@ public class ApplicationInfoManager {
         instance = this;
     }
 
+    /**
+     * 创建实例
+     * EurekaConfigBasedInstanceInfoProvider 构建基础实例
+     * @param config
+     * @param optionalArgs
+     */
     public ApplicationInfoManager(EurekaInstanceConfig config, /* nullable */ OptionalArgs optionalArgs) {
         this(config, new EurekaConfigBasedInstanceInfoProvider(config).get(), optionalArgs);
     }
@@ -198,6 +219,8 @@ public class ApplicationInfoManager {
      * see {@link InstanceInfo#getHostName()} for explanation on why the hostname is used as the default address
      */
     public void refreshDataCenterInfoIfRequired() {
+
+        // hostname
         String existingAddress = instanceInfo.getHostName();
 
         String existingSpotInstanceAction = null;
@@ -212,6 +235,8 @@ public class ApplicationInfoManager {
         } else {
             newAddress = config.getHostName(true);
         }
+
+        // ip
         String newIp = config.getIpAddress();
 
         if (newAddress != null && !newAddress.equals(existingAddress)) {
@@ -268,6 +293,10 @@ public class ApplicationInfoManager {
         void notify(StatusChangeEvent statusChangeEvent);
     }
 
+    /**
+     * #map 方法，根据传入 pre 参数，转换成对应的应用实例状态。
+     * 默认情况下，使用 NO_OP_MAPPER 。一般情况下，不需要关注该类。
+     */
     public static interface InstanceStatusMapper {
 
         /**

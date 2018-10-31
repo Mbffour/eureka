@@ -30,18 +30,29 @@ class TaskExecutors<ID, T> {
     private static final Logger logger = LoggerFactory.getLogger(TaskExecutors.class);
 
     private final AtomicBoolean isShutdown;
+
+    /**
+     * 工作线程池
+     */
     private final List<Thread> workerThreads;
 
     TaskExecutors(WorkerRunnableFactory<ID, T> workerRunnableFactory, int workerCount, AtomicBoolean isShutdown) {
         this.isShutdown = isShutdown;
         this.workerThreads = new ArrayList<>();
 
+        // 创建 工作线程池
         ThreadGroup threadGroup = new ThreadGroup("eurekaTaskExecutors");
+
+        /**
+         * 开启工作线程
+         */
         for (int i = 0; i < workerCount; i++) {
             WorkerRunnable<ID, T> runnable = workerRunnableFactory.create(i);
             Thread workerThread = new Thread(threadGroup, runnable, runnable.getWorkerName());
             workerThreads.add(workerThread);
             workerThread.setDaemon(true);
+
+            //开始
             workerThread.start();
         }
     }
@@ -74,9 +85,14 @@ class TaskExecutors<ID, T> {
                                                        final AcceptorExecutor<ID, T> acceptorExecutor) {
         final AtomicBoolean isShutdown = new AtomicBoolean();
         final TaskExecutorMetrics metrics = new TaskExecutorMetrics(name);
+
+
         return new TaskExecutors<>(new WorkerRunnableFactory<ID, T>() {
             @Override
             public WorkerRunnable<ID, T> create(int idx) {
+                /**
+                 * 创建任务
+                 */
                 return new BatchWorkerRunnable<>("TaskBatchingWorker-" +name + '-' + idx, isShutdown, metrics, processor, acceptorExecutor);
             }
         }, workerCount, isShutdown);
@@ -144,16 +160,27 @@ class TaskExecutors<ID, T> {
         }
     }
 
+    /**
+     * 创建工作线程工厂
+     *
+     * @param <ID> 任务编号泛型
+     * @param <T> 批量任务执行器
+     */
     interface WorkerRunnableFactory<ID, T> {
         WorkerRunnable<ID, T> create(int idx);
     }
 
+    /**
+     * 抽象工作线程
+     * @param <ID>
+     * @param <T>
+     */
     abstract static class WorkerRunnable<ID, T> implements Runnable {
-        final String workerName;
+        final String workerName;  //线程名
         final AtomicBoolean isShutdown;
         final TaskExecutorMetrics metrics;
-        final TaskProcessor<T> processor;
-        final AcceptorExecutor<ID, T> taskDispatcher;
+        final TaskProcessor<T> processor;  //任务处理器
+        final AcceptorExecutor<ID, T> taskDispatcher;   //任务接收执行器
 
         WorkerRunnable(String workerName,
                        AtomicBoolean isShutdown,
@@ -182,21 +209,36 @@ class TaskExecutors<ID, T> {
             super(workerName, isShutdown, metrics, processor, acceptorExecutor);
         }
 
+        /**
+         * 执行的任务方法
+         */
         @Override
         public void run() {
             try {
                 while (!isShutdown.get()) {
+                    // 注释：获取信号量释放 batchWorkRequests.release()，返回任务集合列表
+                    //首先要获取信号量释放，才能获得任务集合
                     List<TaskHolder<ID, T>> holders = getWork();
+
+                    /**
+                     * 记录过期时间
+                     */
                     metrics.registerExpiryTimes(holders);
 
+                    // 获得实际批量任务
                     List<T> tasks = getTasksOf(holders);
+
+                    // 注释：将批量任务打包请求Peer节点
                     ProcessingResult result = processor.process(tasks);
+
+
                     switch (result) {
                         case Success:
                             break;
                         case Congestion:
                         case TransientError:
-                            taskDispatcher.reprocess(holders, result);
+                            //任务接收器
+                            taskDispatcher.reprocess(holders, result);  // 提交重新处理
                             break;
                         case PermanentError:
                             logger.warn("Discarding {} tasks of {} due to permanent error", holders.size(), workerName);
@@ -211,14 +253,25 @@ class TaskExecutors<ID, T> {
             }
         }
 
+        /**
+         * 取队列 首先要获取信号量释放，才能获得任务集合
+         * @return
+         * @throws InterruptedException
+         */
         private List<TaskHolder<ID, T>> getWork() throws InterruptedException {
+            /**
+             * 释放一个信号量  然后一直等获取到一个任务
+             */
             BlockingQueue<List<TaskHolder<ID, T>>> workQueue = taskDispatcher.requestWorkItems();
             List<TaskHolder<ID, T>> result;
+
+            //获取一个批量任务直到成功
             do {
                 result = workQueue.poll(1, TimeUnit.SECONDS);
             } while (!isShutdown.get() && result == null);
             return (result == null) ? new ArrayList<>() : result;
         }
+
 
         private List<T> getTasksOf(List<TaskHolder<ID, T>> holders) {
             List<T> tasks = new ArrayList<>(holders.size());
@@ -243,15 +296,25 @@ class TaskExecutors<ID, T> {
         public void run() {
             try {
                 while (!isShutdown.get()) {
+
+                    // 发起请求信号量，并获得单任务的工作队列
                     BlockingQueue<TaskHolder<ID, T>> workQueue = taskDispatcher.requestWorkItem();
+
+
                     TaskHolder<ID, T> taskHolder;
+
+                    // 【循环】获取单任务，直到成功
                     while ((taskHolder = workQueue.poll(1, TimeUnit.SECONDS)) == null) {
                         if (isShutdown.get()) {
                             return;
                         }
                     }
+
+                    // TODO 芋艿：监控相关，暂时无视
                     metrics.registerExpiryTime(taskHolder);
                     if (taskHolder != null) {
+
+                        // 调用处理器执行任务
                         ProcessingResult result = processor.process(taskHolder.getTask());
                         switch (result) {
                             case Success:

@@ -26,6 +26,16 @@ public class OverrideExistsRule implements InstanceStatusOverrideRule {
     public StatusOverrideResult apply(InstanceInfo instanceInfo, Lease<InstanceInfo> existingLease, boolean isReplication) {
         InstanceInfo.InstanceStatus overridden = statusOverrides.get(instanceInfo.getId());
         // If there are instance specific overrides, then they win - otherwise the ASG status
+
+        /**
+         * 覆盖状态不为null
+         *
+         * AbstractInstanceRegistry.overriddenInstanceStatusMap 每次访问刷新有效期，
+         * 如果调用到 OverrideExistsRule ，则会不断刷新。
+         * 从 DownOrStartingRule 看到，instanceInfo 处于 InstanceInfo.InstanceStatus.DOWN
+         * 或者 InstanceInfo.InstanceStatus.STARTING 才不会继续调用 OverrideExistsRule 匹配，
+         * AbstractInstanceRegistry.overriddenInstanceStatusMap 才有可能过期
+         */
         if (overridden != null) {
             logger.debug("The instance specific override for instance {} and the value is {}",
                     instanceInfo.getId(), overridden.name());

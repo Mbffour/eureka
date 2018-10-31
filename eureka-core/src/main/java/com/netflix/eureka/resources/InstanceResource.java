@@ -102,6 +102,15 @@ public class InstanceResource {
      * @return response indicating whether the operation was a success or
      *         failure.
      */
+    /**
+     * 续约接口  RESTful接口
+     *
+     * @param isReplication
+     * @param overriddenStatus
+     * @param status
+     * @param lastDirtyTimestamp
+     * @return
+     */
     @PUT
     public Response renewLease(
             @HeaderParam(PeerEurekaNode.HEADER_REPLICATION) String isReplication,
@@ -109,6 +118,12 @@ public class InstanceResource {
             @QueryParam("status") String status,
             @QueryParam("lastDirtyTimestamp") String lastDirtyTimestamp) {
         boolean isFromReplicaNode = "true".equals(isReplication);
+
+        /**
+         * 续约是否成功
+         * isFromReplicaNode  是否来自复制节点  true or false
+         * 来自复制节点就不需要再复制传播了
+         */
         boolean isSuccess = registry.renew(app.getName(), id, isFromReplicaNode);
 
         // Not found in the registry, immediately ask for a register
@@ -118,10 +133,21 @@ public class InstanceResource {
         }
         // Check if we need to sync based on dirty time stamp, the client
         // instance might have changed some value
+
+        /**
+         *   // 比较 InstanceInfo 的 lastDirtyTimestamp 属性
+         *   比较请求的 lastDirtyTimestamp 和 Server 的 InstanceInfo 的 lastDirtyTimestamp 属性差异，
+         *   需要配置 eureka.syncWhenTimestampDiffers = true
+         */
         Response response = null;
         if (lastDirtyTimestamp != null && serverConfig.shouldSyncWhenTimestampDiffers()) {
             response = this.validateDirtyTimestamp(Long.valueOf(lastDirtyTimestamp), isFromReplicaNode);
             // Store the overridden status since the validation found out the node that replicates wins
+
+            /**
+             * 会使用请求参数 overriddenStatus
+             * 存储到 Eureka-Server 的应用实例覆盖状态集合( AbstractInstanceRegistry.overriddenInstanceStatusMap )
+             */
             if (response.getStatus() == Response.Status.NOT_FOUND.getStatusCode()
                     && (overriddenStatus != null)
                     && !(InstanceStatus.UNKNOWN.name().equals(overriddenStatus))
@@ -162,14 +188,18 @@ public class InstanceResource {
             @HeaderParam(PeerEurekaNode.HEADER_REPLICATION) String isReplication,
             @QueryParam("lastDirtyTimestamp") String lastDirtyTimestamp) {
         try {
+
+            // 应用实例不存在
             if (registry.getInstanceByAppAndId(app.getName(), id) == null) {
                 logger.warn("Instance not found: {}/{}", app.getName(), id);
                 return Response.status(Status.NOT_FOUND).build();
             }
+
+            // 覆盖状态更新
             boolean isSuccess = registry.statusUpdate(app.getName(), id,
                     InstanceStatus.valueOf(newStatus), lastDirtyTimestamp,
                     "true".equals(isReplication));
-
+            // 返回结果
             if (isSuccess) {
                 logger.info("Status updated: {} - {} - {}", app.getName(), id, newStatus);
                 return Response.ok().build();
@@ -198,16 +228,25 @@ public class InstanceResource {
      */
     @DELETE
     @Path("status")
+
+    /**
+     * 删除覆盖状态
+     *
+     * 请求参数 newStatusValue ，设置应用实例的状态。大多数情况下，newStatusValue 要和应用实例实际的状态一致，
+     * 因为该应用实例的 Eureka-Client 不会从 Eureka-Server 拉取到该应用状态 newStatusValue 。
+     * 另外一种方式，不传递该参数，相当于 UNKNOWN 状态，这样，Eureka-Client 会主动向 Eureka-Server 再次发起注册
+     */
     public Response deleteStatusUpdate(
             @HeaderParam(PeerEurekaNode.HEADER_REPLICATION) String isReplication,
             @QueryParam("value") String newStatusValue,
             @QueryParam("lastDirtyTimestamp") String lastDirtyTimestamp) {
         try {
+            // 应用实例不存在
             if (registry.getInstanceByAppAndId(app.getName(), id) == null) {
                 logger.warn("Instance not found: {}/{}", app.getName(), id);
                 return Response.status(Status.NOT_FOUND).build();
             }
-
+            // 覆盖状态删除
             InstanceStatus newStatus = newStatusValue == null ? InstanceStatus.UNKNOWN : InstanceStatus.valueOf(newStatusValue);
             boolean isSuccess = registry.deleteStatusOverride(app.getName(), id,
                     newStatus, lastDirtyTimestamp, "true".equals(isReplication));
@@ -278,10 +317,12 @@ public class InstanceResource {
     public Response cancelLease(
             @HeaderParam(PeerEurekaNode.HEADER_REPLICATION) String isReplication) {
         try {
+
+            // 下线
             boolean isSuccess = registry.cancel(app.getName(), id,
                 "true".equals(isReplication));
 
-            if (isSuccess) {
+            if (isSuccess) {// 下线成功
                 logger.debug("Found (Cancel): {} - {}", app.getName(), id);
                 return Response.ok().build();
             } else {
@@ -295,20 +336,40 @@ public class InstanceResource {
 
     }
 
+    /**
+     * 比较lastDirtyTimestamp
+     * @param lastDirtyTimestamp
+     * @param isReplication
+     * @return
+     */
     private Response validateDirtyTimestamp(Long lastDirtyTimestamp,
                                             boolean isReplication) {
+
+        // 获取 InstanceInfo
         InstanceInfo appInfo = registry.getInstanceByAppAndId(app.getName(), id, false);
         if (appInfo != null) {
             if ((lastDirtyTimestamp != null) && (!lastDirtyTimestamp.equals(appInfo.getLastDirtyTimestamp()))) {
                 Object[] args = {id, appInfo.getLastDirtyTimestamp(), lastDirtyTimestamp, isReplication};
 
+
+                /**
+                 * 请求的 lastDirtyTimestamp 较大，意味着请求方( 可能是 Eureka-Client ，
+                 * 也可能是 Eureka-Server 集群内的其他 Server )存在 InstanceInfo
+                 * 和 Eureka-Server 的 InstanceInfo 的数据不一致，返回 404 响应。请求方收到 404 响应后重新发起注册
+                 *
+                 */
                 if (lastDirtyTimestamp > appInfo.getLastDirtyTimestamp()) {
                     logger.debug(
                             "Time to sync, since the last dirty timestamp differs -"
                                     + " ReplicationInstance id : {},Registry : {} Incoming: {} Replication: {}",
                             args);
                     return Response.status(Status.NOT_FOUND).build();
-                } else if (appInfo.getLastDirtyTimestamp() > lastDirtyTimestamp) {
+                }
+                /**
+                 * Server 的 较大
+                 * Server 的 lastDirtyTimestamp 较大，并且请求方为 Eureka-Client，续租成功，返回 200 成功响应
+                 */
+                else if (appInfo.getLastDirtyTimestamp() > lastDirtyTimestamp) {
                     // In the case of replication, send the current instance info in the registry for the
                     // replicating node to sync itself with this one.
                     if (isReplication) {

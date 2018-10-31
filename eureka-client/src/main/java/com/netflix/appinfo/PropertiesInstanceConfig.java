@@ -46,12 +46,24 @@ import static com.netflix.appinfo.PropertyBasedInstanceConfigConstants.*;
  * </p>
  *
  * @author Karthik Ranganathan
- *
+ *  配置文件的 Eureka 应用实例配置抽象基类
  */
 public abstract class PropertiesInstanceConfig extends AbstractInstanceConfig implements EurekaInstanceConfig {
 
+    /**
+     * 命名空间
+     */
     protected final String namespace;
+
+    /**
+     * 配置文件对象
+     */
     protected final DynamicPropertyFactory configInstance;
+
+    /**
+     * 应用分组
+     * 从 环境变量 获取
+     */
     private String appGrpNameFromEnv;
 
     public PropertiesInstanceConfig() {
@@ -69,14 +81,24 @@ public abstract class PropertiesInstanceConfig extends AbstractInstanceConfig im
 
     public PropertiesInstanceConfig(String namespace, DataCenterInfo info) {
         super(info);
-
+        // 设置 namespace，为 "." 结尾
         this.namespace = namespace.endsWith(".")
                 ? namespace
                 : namespace + ".";
+        // 从 环境变量 获取 应用分组
 
+        /**
+         * appGrpNameFromEnv 属性，应用分组，从环境变量中获取。从 #getAppGroupName() 方法中，可以看到优先还是从配置文件读取。设置方法如下：
+         *
+         * System.setProperty(FALLBACK_APP_GROUP_KEY, "app_gropu_name");
+         *
+         *
+         * FALLBACK_APP_GROUP_KEY，私有静态变量，实际得使用 NETFLIX_APP_GROUP。
+         * com.netflix.config.ConfigurationManager 可以从环境变量获取到值。
+         */
         appGrpNameFromEnv = ConfigurationManager.getConfigInstance()
                 .getString(FALLBACK_APP_GROUP_KEY, Values.UNKNOWN_APPLICATION);
-
+        // 初始化 配置文件对象
         this.configInstance = Archaius1Utils.initConfig(CommonConstants.CONFIG_FILE_NAME);
     }
 
@@ -207,6 +229,10 @@ public abstract class PropertiesInstanceConfig extends AbstractInstanceConfig im
      * metadata keys are searched under the namespace
      * <code>eureka.appinfo.metadata</code>.
      * </p>
+     */
+    /**
+     * 用户自定元数据
+     * @return
      */
     @Override
     public Map<String, String> getMetadataMap() {

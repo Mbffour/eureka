@@ -33,6 +33,20 @@ import com.netflix.eureka.registry.AbstractInstanceRegistry;
  *
  * @param <T>
  */
+
+
+/**
+ *负责创建/续订和驱逐<em>租约</ em>
+ *针对特定实例。
+ *
+ * <p>
+ *租约确定哪些实例接收流量。 没有更新时  来自客户的请求，到期并且实例被驱逐
+ *来自{@link AbstractInstanceRegistry}。 这是接收流量的实例的关键
+ * @param <T>
+ *
+ *
+ *     租约管理器接口，提供租约的注册、续租、取消( 主动下线 )、过期( 过期下线 )
+ */
 public interface LeaseManager<T> {
 
     /**

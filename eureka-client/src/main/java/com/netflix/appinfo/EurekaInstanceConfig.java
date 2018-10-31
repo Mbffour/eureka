@@ -72,6 +72,10 @@ public interface EurekaInstanceConfig {
      *
      * @return true to immediately start taking traffic, false otherwise.
      */
+
+    /*
+      应用初始化后是否开启
+     */
     boolean isInstanceEnabledOnit();
 
     /**
@@ -122,6 +126,10 @@ public interface EurekaInstanceConfig {
      *
      * @return time in seconds
      */
+
+    //租约续约频率，单位：秒。应用不断通过按照该频率发送心跳给 Eureka-Server 以达到续约的作用。
+    // 当 Eureka-Server 超过最大频率未收到续约（心跳），契约失效，进行应用移除。
+    // 应用移除后，其他应用无法从 Eureka-Server 获取该应用
     int getLeaseRenewalIntervalInSeconds();
 
     /**
@@ -139,6 +147,10 @@ public interface EurekaInstanceConfig {
      * </p>
      *
      * @return value indicating time in seconds.
+     */
+
+    /*
+    契约过期时间，单位：秒。
      */
     int getLeaseExpirationDurationInSeconds();
 
@@ -209,6 +221,12 @@ public interface EurekaInstanceConfig {
      *
      * @return information that indicates which data center this instance is
      *         deployed in.
+     */
+
+    /*
+     * 数据中心信息。com.netflix.appinfo.DataCenterInfo，数据中心信息接口，
+     * 目前较为简单，标记所属数据中心名。一般情况下，我们使用 Name.MyOwn
+     * @return
      */
     DataCenterInfo getDataCenterInfo();
 
@@ -370,6 +388,15 @@ public interface EurekaInstanceConfig {
     /**
      * Get the namespace used to find properties.
      * @return the namespace used to find properties.
+     */
+
+    /*
+     *配置命名空间，默认使用 eureka。以 eureka-client.properties 举个例子：
+     * eureka.name=eureka
+     * eureka.port=8080
+     * eureka.vipAddress=eureka.mydomain.net
+     * 每个属性最前面的 eureka 即是配置命名空间，一般情况无需修改。
+     * @return
      */
     String getNamespace();
 

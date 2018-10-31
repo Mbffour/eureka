@@ -75,13 +75,24 @@ public class PeerReplicationResource {
      *            The List of replication events from peer eureka nodes
      * @return A batched response containing the information about the responses of individual events
      */
+
+    /**
+     * 同步数据 发送的地方
+     * @param replicationList
+     * @return
+     */
     @Path("batch")
     @POST
     public Response batchReplication(ReplicationList replicationList) {
         try {
             ReplicationListResponse batchResponse = new ReplicationListResponse();
+
+            // 注释：这里将收到的任务列表，依次循环解析处理，主要核心方法在 dispatch 方法中。
+
+            //// 逐个同步操作任务处理，并将处理结果( ReplicationInstanceResponse ) 合并到 ReplicationListResponse 。
             for (ReplicationInstance instanceInfo : replicationList.getReplicationList()) {
                 try {
+                    //发送
                     batchResponse.addResponse(dispatch(instanceInfo));
                 } catch (Exception e) {
                     batchResponse.addResponse(new ReplicationInstanceResponse(Status.INTERNAL_SERVER_ERROR.getStatusCode(), null));
@@ -96,6 +107,11 @@ public class PeerReplicationResource {
         }
     }
 
+    /**
+     * 发送应用实例
+     * @param instanceInfo
+     * @return
+     */
     private ReplicationInstanceResponse dispatch(ReplicationInstance instanceInfo) {
         ApplicationResource applicationResource = createApplicationResource(instanceInfo);
         InstanceResource resource = createInstanceResource(instanceInfo, applicationResource);
@@ -105,6 +121,10 @@ public class PeerReplicationResource {
         String instanceStatus = toString(instanceInfo.getStatus());
 
         Builder singleResponseBuilder = new Builder();
+
+        /**
+         * 各种请求
+         */
         switch (instanceInfo.getAction()) {
             case Register:
                 singleResponseBuilder = handleRegister(instanceInfo, applicationResource);
@@ -134,7 +154,15 @@ public class PeerReplicationResource {
         return new InstanceResource(applicationResource, instanceInfo.getId(), serverConfig, registry);
     }
 
+    /**
+     * 处理注册同步
+     * @param instanceInfo
+     * @param applicationResource
+     * @return
+     */
     private static Builder handleRegister(ReplicationInstance instanceInfo, ApplicationResource applicationResource) {
+
+        // 注释：private static final String REPLICATION = "true"; 定义的一个常量值，而且还是回调 ApplicationResource.addInstance 方法
         applicationResource.addInstance(instanceInfo.getInstanceInfo(), REPLICATION);
         return new Builder().setStatusCode(Status.OK.getStatusCode());
     }

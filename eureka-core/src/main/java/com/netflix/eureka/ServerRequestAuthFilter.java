@@ -57,6 +57,11 @@ public class ServerRequestAuthFilter implements Filter {
         // nothing to do here
     }
 
+    /**
+     * Eureka-Server 请求认证过滤器。Eureka-Server 未实现认证。
+     * 目前打印访问的客户端名和版本号，配合 Netflix Servo 实现监控信息采集
+     * @param request
+     */
     protected void logAuth(ServletRequest request) {
         if (serverConfig.shouldLogIdentityHeaders()) {
             if (request instanceof HttpServletRequest) {

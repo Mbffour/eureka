@@ -26,6 +26,12 @@ import org.slf4j.LoggerFactory;
  * @author elandau
  *
  */
+
+/**
+ * ApplicationInfoManager 构建时传入
+ *
+ * 根据 EurekaInstanceConfig 初始化一个instanceInfo
+ */
 @Singleton
 public class EurekaConfigBasedInstanceInfoProvider implements Provider<InstanceInfo> {
     private static final Logger LOG = LoggerFactory.getLogger(EurekaConfigBasedInstanceInfoProvider.class);
@@ -46,33 +52,61 @@ public class EurekaConfigBasedInstanceInfoProvider implements Provider<InstanceI
     public synchronized InstanceInfo get() {
         if (instanceInfo == null) {
             // Build the lease information to be passed to the server based on config
+
+            // 创建 租约信息构建器，并设置属性
             LeaseInfo.Builder leaseInfoBuilder = LeaseInfo.Builder.newBuilder()
+
+                    //30
                     .setRenewalIntervalInSecs(config.getLeaseRenewalIntervalInSeconds())
+                    //90
                     .setDurationInSecs(config.getLeaseExpirationDurationInSeconds());
 
+            // 创建 VIP地址解析器
             if (vipAddressResolver == null) {
                 vipAddressResolver = new Archaius1VipAddressResolver();
             }
 
             // Builder the instance information to be registered with eureka server
+
+            // 创建 应用实例信息构建器
             InstanceInfo.Builder builder = InstanceInfo.Builder.newBuilder(vipAddressResolver);
 
             // set the appropriate id for the InstanceInfo, falling back to datacenter Id if applicable, else hostname
+
+            // 应用实例编号
             String instanceId = config.getInstanceId();
+
             if (instanceId == null || instanceId.isEmpty()) {
+
+                //获取数据中心信息
                 DataCenterInfo dataCenterInfo = config.getDataCenterInfo();
                 if (dataCenterInfo instanceof UniqueIdentifier) {
+
+                    /**
+                     * AmazonInfo 构建id
+                     */
                     instanceId = ((UniqueIdentifier) dataCenterInfo).getId();
                 } else {
+                    /**
+                     * 使用主机名作为id
+                     */
                     instanceId = config.getHostName(false);
                 }
             }
 
+            // 获得 主机名
             String defaultAddress;
             if (config instanceof RefreshableInstanceConfig) {
                 // Refresh AWS data center info, and return up to date address
+
+                /**
+                 * Amazon  region区下招zone
+                 *
+                 * public-hostname
+                 */
                 defaultAddress = ((RefreshableInstanceConfig) config).resolveDefaultAddress(false);
             } else {
+
                 defaultAddress = config.getHostName(false);
             }
 
@@ -81,6 +115,8 @@ public class EurekaConfigBasedInstanceInfoProvider implements Provider<InstanceI
                 defaultAddress = config.getIpAddress();
             }
 
+
+            // 设置 应用实例信息构建器 的 属性
             builder.setNamespace(config.getNamespace())
                     .setInstanceId(instanceId)
                     .setAppName(config.getAppname())
@@ -101,8 +137,15 @@ public class EurekaConfigBasedInstanceInfoProvider implements Provider<InstanceI
                             config.getHealthCheckUrl(), config.getSecureHealthCheckUrl());
 
 
+
+            // 应用初始化后是否开启
             // Start off with the STARTING state to avoid traffic
             if (!config.isInstanceEnabledOnit()) {
+                /**
+                 * STARTING 状态
+                 *
+                 * ApplicationInfoManager#setInstanceStatus(...) 方法改变应用实例状态
+                 */
                 InstanceStatus initialStatus = InstanceStatus.STARTING;
                 LOG.info("Setting initial instance status as: {}", initialStatus);
                 builder.setStatus(initialStatus);
@@ -112,6 +155,8 @@ public class EurekaConfigBasedInstanceInfoProvider implements Provider<InstanceI
                          InstanceStatus.UP);
             }
 
+            // 设置 应用实例信息构建器 的 元数据( Metadata )集合
+            // 用户自定
             // Add any user-specific metadata information
             for (Map.Entry<String, String> mapEntry : config.getMetadataMap().entrySet()) {
                 String key = mapEntry.getKey();
@@ -119,7 +164,10 @@ public class EurekaConfigBasedInstanceInfoProvider implements Provider<InstanceI
                 builder.add(key, value);
             }
 
+            // 创建 应用实例信息
             instanceInfo = builder.build();
+
+            // 设置 应用实例信息 的 租约信息
             instanceInfo.setLeaseInfo(leaseInfoBuilder.build());
         }
         return instanceInfo;

@@ -229,10 +229,16 @@ public class Applications {
      * @return the internal hash code representation indicating the information
      *         about the instances.
      */
+    /*8
+    增量获取
+    appsHashCode = ${status}_${count}_
+     */
     @JsonIgnore
     public String getReconcileHashCode() {
         TreeMap<String, AtomicInteger> instanceCountMap = new TreeMap<String, AtomicInteger>();
         populateInstanceCountMap(instanceCountMap);
+
+        //计算hash值
         return getReconcileHashCode(instanceCountMap);
     }
 
@@ -242,6 +248,10 @@ public class Applications {
      * 
      * @param instanceCountMap
      *            the map to populate
+     */
+    /**
+     * 计算每个应用实力状态数量
+     * @param instanceCountMap
      */
     public void populateInstanceCountMap(Map<String, AtomicInteger> instanceCountMap) {
         for (Application app : this.getRegisteredApplications()) {

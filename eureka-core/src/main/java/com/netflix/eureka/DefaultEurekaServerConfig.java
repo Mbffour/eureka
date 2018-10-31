@@ -68,13 +68,23 @@ public class DefaultEurekaServerConfig implements EurekaServerConfig {
     private static final String EUREKA_ENVIRONMENT = "eureka.environment";
     private static final Logger logger = LoggerFactory
             .getLogger(DefaultEurekaServerConfig.class);
+
+    /**
+     * 配置文件对象
+     */
     private static final DynamicPropertyFactory configInstance = com.netflix.config.DynamicPropertyFactory
             .getInstance();
+    /**
+     * 配置文件
+     */
     private static final DynamicStringProperty EUREKA_PROPS_FILE = DynamicPropertyFactory
             .getInstance().getStringProperty("eureka.server.props",
                     "eureka-server");
     private static final int TIME_TO_WAIT_FOR_REPLICATION = 30000;
 
+    /**
+     * 命名空间
+     */
     private String namespace = "eureka.";
 
     // These counters are checked for each HTTP request. Instantiating them per request like for the other
@@ -98,10 +108,15 @@ public class DefaultEurekaServerConfig implements EurekaServerConfig {
 
     public DefaultEurekaServerConfig(String namespace) {
         this.namespace = namespace;
+        // 初始化 配置文件对象
         init();
     }
 
+    /**
+     * 默认配置文件名为 eureka-server
+     */
     private void init() {
+        // 初始化 配置文件对象
         String env = ConfigurationManager.getConfigInstance().getString(
                 EUREKA_ENVIRONMENT, TEST);
         ConfigurationManager.getConfigInstance().setProperty(
@@ -214,6 +229,7 @@ public class DefaultEurekaServerConfig implements EurekaServerConfig {
                         (10 * 60 * 1000)).get();
     }
 
+    //自我保护模式比例更新定时任务执行频率，单位：毫秒
     @Override
     public int getRenewalThresholdUpdateIntervalMs() {
         return configInstance.getIntProperty(
@@ -235,6 +251,10 @@ public class DefaultEurekaServerConfig implements EurekaServerConfig {
         return configured > 0 ? configured : 30;
     }
 
+    /**
+     * 默认0.85比率
+     * @return
+     */
     @Override
     public double getRenewalPercentThreshold() {
         return configInstance.getDoubleProperty(
@@ -395,12 +415,14 @@ public class DefaultEurekaServerConfig implements EurekaServerConfig {
                 namespace + "syncWhenTimestampDiffers", true).get();
     }
 
+    //5次
     @Override
     public int getRegistrySyncRetries() {
         return configInstance.getIntProperty(
                 namespace + "numberRegistrySyncRetries", 5).get();
     }
 
+    //30秒
     @Override
     public long getRegistrySyncRetryWaitMs() {
         return configInstance.getIntProperty(

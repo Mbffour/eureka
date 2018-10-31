@@ -65,11 +65,20 @@ public class DefaultEurekaClientConfig implements EurekaClientConfig {
      */
     @Deprecated
     public static final String DEFAULT_NAMESPACE = CommonConstants.DEFAULT_CONFIG_NAMESPACE + ".";
+
+
     public static final String DEFAULT_ZONE = "defaultZone";
     public static final String URL_SEPARATOR = "\\s*,\\s*";
 
+    /**
+     * 命名空间
+     */
     private final String namespace;
     private final DynamicPropertyFactory configInstance;
+
+    /**
+     * HTTP 传输配置
+     */
     private final EurekaTransportConfig transportConfig;
 
     public DefaultEurekaClientConfig() {
@@ -77,11 +86,13 @@ public class DefaultEurekaClientConfig implements EurekaClientConfig {
     }
 
     public DefaultEurekaClientConfig(String namespace) {
+        // 设置 namespace，为 "." 结尾
         this.namespace = namespace.endsWith(".")
                 ? namespace
                 : namespace + ".";
-
+// 初始化 配置文件对象
         this.configInstance = Archaius1Utils.initConfig(CommonConstants.CONFIG_FILE_NAME);
+        // 创建 HTTP 传输配置
         this.transportConfig = new DefaultEurekaTransportConfig(namespace, configInstance);
     }
 
@@ -106,10 +117,18 @@ public class DefaultEurekaClientConfig implements EurekaClientConfig {
      */
     @Override
     public int getInstanceInfoReplicationIntervalSeconds() {
+        /**
+         * 30秒心跳
+         */
         return configInstance.getIntProperty(
                 namespace + REGISTRATION_REPLICATION_INTERVAL_KEY, 30).get();
     }
 
+
+    /**
+     * 初始化延迟40秒
+     * @return
+     */
     @Override
     public int getInitialInstanceInfoReplicationIntervalSeconds() {
         return configInstance.getIntProperty(
@@ -123,6 +142,10 @@ public class DefaultEurekaClientConfig implements EurekaClientConfig {
      */
     @Override
     public int getEurekaServiceUrlPollIntervalSeconds() {
+
+        /**
+         * 默认值 300 秒
+         */
         return configInstance.getIntProperty(
                 namespace + EUREKA_SERVER_URL_POLL_INTERVAL_KEY, 5 * 60 * 1000).get() / 1000;
     }
@@ -345,6 +368,10 @@ public class DefaultEurekaClientConfig implements EurekaClientConfig {
     @Nullable
     @Override
     public String fetchRegistryForRemoteRegions() {
+
+        /**
+         * fetchRemoteRegionsRegistry: 默认配置服务注册表信息
+         */
         return configInstance.getStringProperty(namespace + SHOULD_FETCH_REMOTE_REGION_KEY, null).get();
     }
 
@@ -353,8 +380,18 @@ public class DefaultEurekaClientConfig implements EurekaClientConfig {
      *
      * @see com.netflix.discovery.EurekaClientConfig#getRegion()
      */
+
+    /**
+     * 获取区
+     * @return
+     */
     @Override
     public String getRegion() {
+
+        /**
+         * value   eureka.region 的值
+         * defalut us-east-1
+         */
         DynamicStringProperty defaultEurekaRegion = configInstance.getStringProperty(CLIENT_REGION_FALLBACK_KEY, Values.DEFAULT_CLIENT_REGION);
         return configInstance.getStringProperty(namespace + CLIENT_REGION_KEY, defaultEurekaRegion.get()).get();
     }
@@ -366,6 +403,13 @@ public class DefaultEurekaClientConfig implements EurekaClientConfig {
      */
     @Override
     public String[] getAvailabilityZones(String region) {
+
+
+        /**
+         * 配置文件中 获取设置值
+         * String propName, String defaultValue
+         * availabilityZones  availabilityZones
+         */
         return configInstance
                 .getStringProperty(
                         namespace + region + "." + CONFIG_AVAILABILITY_ZONE_PREFIX,

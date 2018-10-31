@@ -30,6 +30,13 @@ import org.slf4j.LoggerFactory;
  *
  * @author Tomasz Bak
  */
+
+/**
+ * *一组仪表，代表测量所映射到的不同阈值水平。
+ * *值1表示达到的最低阈值水平。
+ * *例如，eureka客户端注册表数据过期定义阈值30s，60s，120s，240s，480s。 延迟90s
+ * *将被映射到量值{30s = 0,60s = 1,120 = 0,240s = 0,480s = 0，无限= 0}。
+ */
 public class ThresholdLevelsMetric {
 
     public static final ThresholdLevelsMetric NO_OP_METRIC = new NoOpThresholdLevelMetric();

@@ -49,6 +49,10 @@ import org.slf4j.LoggerFactory;
  * @author Karthik Ranganathan, Greg Kim
  *
  */
+
+/**
+ * 处理单个应用的请求操作的 Resource ( Controller )
+ */
 @Produces({"application/xml", "application/json"})
 public class ApplicationResource {
     private static final Logger logger = LoggerFactory.getLogger(ApplicationResource.class);
@@ -139,9 +143,18 @@ public class ApplicationResource {
      *            a header parameter containing information whether this is
      *            replicated from other nodes.
      */
+    /**
+     个方法在最终是EurekaClient启动后注册调用的方法，
+     然而Peer节点的信息同步也调用了这个方法，
+     仅仅只是通过一个变量 isReplication 为true还是false来判断是否是节点复制。
+     剩下的ApplicationResource.addInstance流程前面已经提到过了，
+     相信大家已经明白了注册的流程是如何扭转的，
+     包括批量任务是如何处理EurekaServer节点之间的信息同步的了
+     */
     @POST
     @Consumes({"application/json", "application/xml"})
     public Response addInstance(InstanceInfo info,
+                                //是否节点复制
                                 @HeaderParam(PeerEurekaNode.HEADER_REPLICATION) String isReplication) {
         logger.debug("Registering instance {} (replication={})", info.getId(), isReplication);
         // validate that the instanceinfo contains all the necessary required fields
@@ -161,6 +174,7 @@ public class ApplicationResource {
             return Response.status(400).entity("Missing dataCenterInfo Name").build();
         }
 
+        // AWS 相关
         // handle cases where clients may be registering with bad DataCenterInfo with missing data
         DataCenterInfo dataCenterInfo = info.getDataCenterInfo();
         if (dataCenterInfo instanceof UniqueIdentifier) {
@@ -182,6 +196,7 @@ public class ApplicationResource {
             }
         }
 
+        //是否为集群间的复制
         registry.register(info, "true".equals(isReplication));
         return Response.status(204).build();  // 204 to be backwards compatible
     }

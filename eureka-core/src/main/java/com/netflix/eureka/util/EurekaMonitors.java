@@ -108,6 +108,12 @@ public enum EurekaMonitors {
      * @param isReplication
      *            true if this a replication, false otherwise.
      */
+    /**
+     *根据是否增加给定统计数据的计数器
+     *因为从其他eureka服务器复制或它是eureka客户端
+     *采取行动。
+     * @param isReplication
+     */
     public void increment(boolean isReplication) {
         counter.incrementAndGet();
 

@@ -39,6 +39,10 @@ import javax.inject.Singleton;
  * @author Karthik Ranganathan
  *
  */
+
+/**
+ * 亚马逊AXW 方式
+ */
 @Singleton
 @ProvidedBy(CloudInstanceConfigProvider.class)
 public class CloudInstanceConfig extends PropertiesInstanceConfig implements RefreshableInstanceConfig {
@@ -104,6 +108,10 @@ public class CloudInstanceConfig extends PropertiesInstanceConfig implements Ref
 
         for (String name : getDefaultAddressResolutionOrder()) {
             try {
+                /**
+                 * 获取同region 下的zone
+                 *
+                 */
                 AmazonInfo.MetaDataKey key = AmazonInfo.MetaDataKey.valueOf(name);
                 String address = amazonInfoHolder.get().get(key);
                 if (address != null && !address.isEmpty()) {
@@ -123,6 +131,10 @@ public class CloudInstanceConfig extends PropertiesInstanceConfig implements Ref
         if (refresh) {
             amazonInfoHolder.refresh();
         }
+
+        /**
+         * public-hostname
+         */
         return amazonInfoHolder.get().get(MetaDataKey.publicHostname);
     }
 

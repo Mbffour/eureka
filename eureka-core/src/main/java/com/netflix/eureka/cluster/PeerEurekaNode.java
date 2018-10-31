@@ -100,7 +100,16 @@ public class PeerEurekaNode {
         this.maxProcessingDelayMs = config.getMaxTimeForReplication();
 
         String batcherName = getBatcherName();
+
+        /**
+         * 创建任务处理器TaskProcessor接口
+         */
         ReplicationTaskProcessor taskProcessor = new ReplicationTaskProcessor(targetHost, replicationClient);
+
+
+        /**
+         * 创建批处理任务分发器
+         */
         this.batchingDispatcher = TaskDispatchers.createBatchingTaskDispatcher(
                 batcherName,
                 config.getMaxElementsInPeerReplicationPool(),
@@ -111,6 +120,12 @@ public class PeerEurekaNode {
                 retrySleepTimeMs,
                 taskProcessor
         );
+
+       // batchingDispatcher.process();  提交任务
+
+        /**
+         * 创建单任务分发器
+         */
         this.nonBatchingDispatcher = TaskDispatchers.createNonBatchingTaskDispatcher(
                 targetHost,
                 config.getMaxElementsInStatusReplicationPool(),
@@ -132,9 +147,33 @@ public class PeerEurekaNode {
      * @throws Exception
      */
     public void register(final InstanceInfo info) throws Exception {
+
+        /**
+         *  注释：任务过期时间给任务分发器处理，默认时间偏移当前时间 90秒
+         */
         long expiryTime = System.currentTimeMillis() + getLeaseRenewalOf(info);
+
+
+        /**
+         * 1 Eureka 的任务批处理，通常情况下Peer之间的同步需要调用多次，如果EurekaServer一多的话，那
+         * 么将会有很多http请求，所以自然而然的孕育出了任务批处理，但是也在一定程度上导致了注册和下线的一些延迟，
+         * 突出优势的同时也势必会造成一些劣势，但是这些延迟情况还是能符合常理在容忍范围之内的
+         * 2 expiryTime 超时时间之内，批次处理要做的事情就是合并任务为一个List，
+         * 然后发送请求的时候，将这个批次List直接打包发送请求出去，
+         * 这样的话，在这个批次的List里面，可能包含取消、注册、心跳、状态等一系列状态的集合List
+         *
+         *
+         *
+         * 将相同任务编号的任务合并，只执行一次
+         *
+         * 相同应用实例的相同同步操作就能被合并，减少操作量
+         *
+         *  例如，Eureka-Server 同步某个应用实例的 Heartbeat 操作，接收同步的 Eureak-Server 挂了，
+         *  一方面这个应用的这次操作会重试，另一方面，这个应用实例会发起新的 Heartbeat 操作，
+         *  通过任务编号合并，接收同步的 Eureka-Server 恢复后，减少收到重复积压的任务。
+         */
         batchingDispatcher.process(
-                taskId("register", info),
+                taskId("register", info),  //requestType（regisyer） + '#' + appName + '/' + id
                 new InstanceReplicationTask(targetHost, Action.Register, info, null, true) {
                     public EurekaHttpResponse<Void> execute() {
                         return replicationClient.register(info);
@@ -164,6 +203,14 @@ public class PeerEurekaNode {
                         return replicationClient.cancel(appName, id);
                     }
 
+
+                    /**
+                     * 重写 处理失败
+                     * 当 Eureka-Server 不存在下线的应用实例时，返回 404 状态码，此时打印错误日志
+                     * @param statusCode
+                     * @param responseEntity
+                     * @throws Throwable
+                     */
                     @Override
                     public void handleFailure(int statusCode, Object responseEntity) throws Throwable {
                         super.handleFailure(statusCode, responseEntity);
@@ -208,6 +255,13 @@ public class PeerEurekaNode {
             @Override
             public void handleFailure(int statusCode, Object responseEntity) throws Throwable {
                 super.handleFailure(statusCode, responseEntity);
+
+                /**
+                 * 向该被心跳同步操作失败的 Eureka-Server 发起注册本地的应用实例的请求
+                 *
+                 * 请求方接收到 404 状态码返回后，认为 Eureka-Server 应用实例实际是不存在的，重新发起应用实例的注册
+                 * 注册自己的实例
+                 */
                 if (statusCode == 404) {
                     logger.warn("{}: missing entry.", getTaskName());
                     if (info != null) {
@@ -215,7 +269,12 @@ public class PeerEurekaNode {
                                 getTaskName(), info.getId(), info.getStatus());
                         register(info);
                     }
-                } else if (config.shouldSyncWhenTimestampDiffers()) {
+                }
+                /**
+                 * 反过来的情况，本地的应用实例的 lastDirtyTimestamp 小于 Eureka-Server 该应用实例的，
+                 * 此时 Eureka-Server 返回 409 状态码
+                 */
+                else if (config.shouldSyncWhenTimestampDiffers()) {
                     InstanceInfo peerInstanceInfo = (InstanceInfo) responseEntity;
                     if (peerInstanceInfo != null) {
                         syncInstancesIfTimestampDiffers(appName, id, info, peerInstanceInfo);
@@ -361,10 +420,15 @@ public class PeerEurekaNode {
                 logger.warn("Peer wants us to take the instance information from it, since the timestamp differs,"
                         + "Id : {} My Timestamp : {}, Peer's timestamp: {}", id, info.getLastDirtyTimestamp(), infoFromPeer.getLastDirtyTimestamp());
 
+                /**
+                 *  // 存储应用实例的覆盖状态
+                 */
                 if (infoFromPeer.getOverriddenStatus() != null && !InstanceStatus.UNKNOWN.equals(infoFromPeer.getOverriddenStatus())) {
                     logger.warn("Overridden Status info -id {}, mine {}, peer's {}", id, info.getOverriddenStatus(), infoFromPeer.getOverriddenStatus());
                     registry.storeOverriddenStatusIfRequired(appName, id, infoFromPeer.getOverriddenStatus());
                 }
+
+                //向自己注册
                 registry.register(infoFromPeer, true);
             }
         } catch (Throwable e) {

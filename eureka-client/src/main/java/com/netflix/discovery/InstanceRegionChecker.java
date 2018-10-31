@@ -16,6 +16,10 @@ public class InstanceRegionChecker {
     private static Logger logger = LoggerFactory.getLogger(InstanceRegionChecker.class);
 
     private final AzToRegionMapper azToRegionMapper;
+
+    /**
+     * 本地区域( Region )
+     */
     private final String localRegion;
 
     InstanceRegionChecker(AzToRegionMapper azToRegionMapper, String localRegion) {
@@ -23,14 +27,24 @@ public class InstanceRegionChecker {
         this.localRegion = localRegion;
     }
 
+
+    /**
+     * 获取实力信息
+     * InstanceRegionChecker
+     * @param instanceInfo
+     * @return
+     */
     @Nullable
     public String getInstanceRegion(InstanceInfo instanceInfo) {
         if (instanceInfo.getDataCenterInfo() == null || instanceInfo.getDataCenterInfo().getName() == null) {
             logger.warn("Cannot get region for instance id:{}, app:{} as dataCenterInfo is null. Returning local:{} by default",
                     instanceInfo.getId(), instanceInfo.getAppName(), localRegion);
 
+            //返回本地  localRegion
             return localRegion;
         }
+
+        // 其他Region  中获取
         if (DataCenterInfo.Name.Amazon.equals(instanceInfo.getDataCenterInfo().getName())) {
             AmazonInfo amazonInfo = (AmazonInfo) instanceInfo.getDataCenterInfo();
             Map<String, String> metadata = amazonInfo.getMetadata();
@@ -44,6 +58,7 @@ public class InstanceRegionChecker {
     }
 
     public boolean isLocalRegion(@Nullable String instanceRegion) {
+
         return null == instanceRegion || instanceRegion.equals(localRegion); // no region == local
     }
 
